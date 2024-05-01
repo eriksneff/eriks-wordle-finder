@@ -1,0 +1,66 @@
+#!/bin/bash
+
+######################  
+# Version History:
+# v0.1: Trying this out
+######################
+
+# Pull down the google sheets seo page import file as tab-separated-values file
+# Note - this Google Sheets URL only refers to the first 'Sheet', so it's critical that doesn't get changed inadvertently.
+printf "Curling google docs sheet now\n"
+curl -sL 'https://docs.google.com/spreadsheets/d/1XczJ3cCCPZ5PbgWxF_RtwpgeN_OyvWG9NNbmGtBXxjc/export?exportFormat=tsv&gid=68758610' -o just-unused-words.tsv
+
+# Delete the first 2 lines since there are header values we don't need
+sed -i "1,2d" just-unused-words.tsv
+
+# Write a newline to the end so the last row reads properly
+printf "\n" >> just-unused-words.tsv
+
+if [[ "${1:0:1}" == "+" ]] ; then
+	includeSet=${1}
+elif [[ "${2:0:1}" == "+" ]] ; then
+	includeSet=${2}
+fi
+
+printf "Include Set: ${includeSet}\n"
+
+if [[ "${1:0:1}" == "-" ]] ; then
+	excludeSet=${1}
+elif [[ "${2:0:1}" == "-" ]] ; then
+	excludeSet=${2}
+fi
+
+printf "Exclude Set: ${excludeSet}\n"
+
+# Loop through the included characters
+if [[ -z ${includeSet} ]] ; then
+	printf "No included characters - skipping\n"
+else
+	printf "Characters to be included are: "
+	for((count=1; count<${#includeSet}; ++count)) do
+		tempLetter=${includeSet:$count:1}
+		regExp="${regExp}(?=.*${tempLetter^})"
+		printf " ${tempLetter}"
+	done
+	printf "\nThe regExp so far is: ${regExp}\n"
+fi
+
+# Loop through the excluded characters
+if [[ -z ${excludeSet} ]] ; then
+	printf "No excluded characters - skipping\n"
+else
+	printf "Characters to be excluded are: "
+	for((count=1; count<${#excludeSet}; ++count)) do
+		tempLetter=${excludeSet:$count:1}
+		regExp="${regExp}(?!.*${tempLetter^})"
+		printf " ${tempLetter}"
+	done
+	printf "\nThe regExp so far is: ${regExp}\n"
+fi
+
+printf "Searching for words that match: \n\n"
+grep -P "${regExp}" just-unused-words.tsv
+printf "\nFinished!\n"
+
+# Clean up when we're done
+rm just-unused-words.tsv
